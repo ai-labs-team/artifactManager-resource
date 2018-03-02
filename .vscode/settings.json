@@ -1,0 +1,6 @@
+{
+    "python.pythonPath": "/home/lukasz/anaconda3/envs/artifactManager-resource/bin/python",
+    "python.autoComplete.extraPaths": [
+        "/home/lukasz/Development/artifactManager-resource/src"
+    ]
+}

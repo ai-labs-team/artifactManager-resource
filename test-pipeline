@@ -1,0 +1,26 @@
+resource_types:
+- name: artifactManager-resource
+  type: docker-image
+  source:
+    repository: lukaszz/artifact-manager-resource
+
+resources:
+- name: store-mysql-dumps
+  type: artifactManager-resource
+  source:
+    driver: s3
+    bucket: axiom.build
+    access_key: ((s3-key-id))
+    secret_access_key: ((s3-access-key))
+    base_path: axiom/mysql/
+    path_scheme: date # /custom/version
+
+jobs:
+- name: mysql-export
+  public: false
+  plan:
+  - put: store-mysql-dumps
+    params:
+      upload_path:
+      upload_src:
+      file: sql-dump-*.txt
