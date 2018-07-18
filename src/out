@@ -7,13 +7,13 @@ from os import path
 from artifact_manager.parser import build_upload_path, get_upload_targets
 from artifact_manager.driver import s3
 
-def check(instream):
+def resource_out(instream):
     input = json.load(instream)
 
     upload_path = build_upload_path(sys.argv[1], input)
     upload_targets = get_upload_targets(sys.argv[1], input)
 
-    s3_session = s3(input['source']['access_key'],input['source']['secret_access_key'])
+    s3_session = s3(input['source']['access_key'], input['source']['secret_access_key'], input['source']['region_name'])
     for target in upload_targets:
         data = open(target['path'], 'rb')
         s3_session.s3_upload(input['source']['bucket'], data, path.join(upload_path, target['filename']))
@@ -23,14 +23,16 @@ def check(instream):
             "Upload Path" : u"%s" % (upload_path)
         },
         "metadata" : [
-            { "name": "Upload Path", "value": str(path.join(input['source']['bucket'], upload_path)) }
+            { "name": "Upload Path", "value": str(path.join(input['source']['bucket'], upload_path)) },
+            { "name": "Base Path", "value": path.join(sys.argv[1], input['params']['local_path']) },
+            { "name": "Upload Targets", "value": json.dumps(upload_targets, indent=2) }
         ]
     }
 
     return payload
 
 def main():
-    print(json.dumps(check(sys.stdin)))
+    print(json.dumps(resource_out(sys.stdin)))
 
 if __name__ == '__main__':
     main()

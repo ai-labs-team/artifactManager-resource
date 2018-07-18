@@ -1,0 +1,5 @@
+---
+test:
+- type: s3
+  bucket: axiom.config
+  key: test/test  

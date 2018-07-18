@@ -7,12 +7,10 @@ import datetime
 def check(instream):
     input = json.load(instream)
 
-    new_version = ""
+    new_version = input['source']['bucket']
 
-    if (input["version"] is None):
-        new_version = "mysql"
-    
-    return [{"Version": u"%s" % (new_version) }] if len(new_version) > 0 else []
+    now = datetime.datetime.now()
+    return [{"Bucket": u"%s %s" % (new_version, now) }]
 
 def main():
     print(json.dumps(check(sys.stdin)))

@@ -2,27 +2,55 @@
 
 import sys
 import json
+import datetime
 
 from os import path
+from artifact_manager.parser import build_path, get_download_targets
+from artifact_manager.driver import s3
 
-def check(instream):
+def resource_in(instream):
     input = json.load(instream)
 
-    new_version = ""
-    
+    s3_session = s3(input['source']['access_key'],input['source']['secret_access_key'])
+
+    if 'params' not in input:
+        return {
+        "version" : {
+            "Download Path" : u"N/A"
+            },
+            "metadata" : [
+                { "name": "Download Path", "value": "N/A" },
+            ]
+        }
+
+    download_path = build_path('', input, s3_session)
+
+    now = datetime.datetime.now()
+    new_version = input["version"]["Bucket"]
+    full_paths = []
+    for target in input['params']['items']:
+        new_path = path.join(download_path, target)
+        item = s3_session.s3_download(input['source']['bucket'], new_path, input['params'])
+        full_paths.append({'bucket':input['source']['bucket'], 'path':new_path})
+        data = open(path.join(sys.argv[1], target), 'w')
+        data.write(item)
+
     payload = {
         "version" : {
-            "Version" : u"%s" % (new_version)
+            "Download Path" : u"%s %s" % (new_version, now)
         },
         "metadata" : [
-            { "name": "Version", "value": new_version }
+            { "name": "Download Path", "value": download_path },
+            { "name": "Items", "value": str(input['params']['items']) },
+            { "name": "Full Manifest", "value": str(full_paths)},
         ]
     }
 
     return payload
 
+
 def main():
-    print(json.dumps(check(sys.stdin)))
+    print(json.dumps(resource_in(sys.stdin)))
 
 if __name__ == '__main__':
     main()
