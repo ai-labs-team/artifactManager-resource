@@ -1,0 +1,14 @@
+platform: linux
+
+image_resource:
+  type: docker-image
+  source: {repository: ubuntu, tag: 16.04}
+
+inputs:
+- name: artifact-manager-resource
+
+outputs:
+- name: generated-files
+
+run:
+  path: artifact-manager-resource/test/pipeline/scripts/create-some-files.sh 
