@@ -2,7 +2,7 @@
 
 set -xe
 
-ls -lha
+ls -lha test-version
 
 echo 'Current Version'
 cat test-version/test-version
