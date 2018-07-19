@@ -6,6 +6,7 @@ image_resource:
 
 inputs:
 - name: artifact-manager-resource
+- name: test-version
 
 outputs:
 - name: generated-files
