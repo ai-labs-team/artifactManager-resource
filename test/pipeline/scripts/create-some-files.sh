@@ -5,6 +5,6 @@ set -xe
 ls -lha test-version
 
 echo 'Current Version'
-cat test-version/test-version
+cat test-version/version
 
 echo 'Generating Files'
