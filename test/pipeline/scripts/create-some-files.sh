@@ -3,6 +3,7 @@
 set -xe
 
 ls -lha test-version
+ls -lha store-files
 
 echo 'Current Version'
 cat test-version/version
