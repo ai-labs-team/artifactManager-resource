@@ -41,7 +41,7 @@ resources:
   source:
     driver: s3
     region_name: us-west-2
-    bucket: axiom.builds
+    bucket: app.builds
     access_key_id: ((s3-key-id))
     secret_access_key: ((s3-access-key))
 
@@ -52,7 +52,7 @@ job:
       remote_path:
       - artifact-manager
       - type: s3
-        bucket: axiom.config
+        bucket: app.config
         key: testing/version/api.txt
       - files
   - task: something-to-do
