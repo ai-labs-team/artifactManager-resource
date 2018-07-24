@@ -2,6 +2,7 @@ import boto3
 import botocore
 import json
 
+
 class s3():
 
     client = {}
@@ -16,6 +17,12 @@ class s3():
             region_name -- region name
         """
         self.client = boto3.client(
+            's3',
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_access_key,
+            region_name=region_name,
+        )
+        self.resource = boto3.resource(
             's3',
             aws_access_key_id=access_key,
             aws_secret_access_key=secret_access_key,
@@ -68,3 +75,6 @@ class s3():
             self.client.put_object(Key=key, Body=file, Bucket=bucket_name, ContentType=content_type)
         else:
             self.client.put_object(Key=key, Body=file, Bucket=bucket_name)
+
+    def s3_search_with_prefix(self, bucket, prefix):
+        return self.resource.Bucket(bucket).objects.filter(Prefix=prefix)

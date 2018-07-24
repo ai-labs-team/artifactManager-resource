@@ -2,37 +2,70 @@
 
 import sys
 import json
+import re
 
 from os import path
-from artifact_manager.parser import build_upload_path, get_upload_targets
+from artifact_manager.parser import BuildPath, get_upload_targets
 from artifact_manager.driver import s3
 
 def resource_out(instream):
     input = json.load(instream)
+    base_dir = sys.argv[1]
 
-    upload_path = build_upload_path(sys.argv[1], input)
-    upload_targets = get_upload_targets(sys.argv[1], input)
+    if input['source']['driver'] == 's3':
+        s3_session = s3(input['source']['access_key_id'],input['source']['secret_access_key'],input['source']['region_name'])
 
-    s3_session = s3(input['source']['access_key'], input['source']['secret_access_key'], input['source']['region_name'])
+
+    if 'params' not in input:
+        return {
+        "version" : {
+            "Upload Path" : u"N/A"
+            },
+            "metadata" : [
+                { "name": "Upload Path", "value": "N/A" },
+            ]
+        }
+
+    upload_path = BuildPath(s3_session).parse_file_location(base_dir, input['params']['remote_path'])
+    local_path = BuildPath(s3_session).parse_file_location(base_dir, input['params']['local_path'])
+    local_path = path.join(base_dir, local_path)
+
+    upload_targets = get_upload_targets(local_path)
+
     for target in upload_targets:
         data = open(target['path'], 'rb')
-        s3_session.s3_upload(input['source']['bucket'], data, path.join(upload_path, target['filename']))
+        trimmed_local_path = re.sub('^\/','',target['path'][len(local_path):])
+        upload_target_loc = path.join(upload_path, trimmed_local_path)
+        s3_session.s3_upload(input['source']['bucket'], data, upload_target_loc)
+
+    cleaned_upload_targets = [ file['filename'] for file in upload_targets]
 
     payload = {
         "version" : {
-            "Upload Path" : u"%s" % (upload_path)
+            "Upload Path" : u"%s/%s" % (input['source']['bucket'], upload_path)
         },
         "metadata" : [
-            { "name": "Upload Path", "value": str(path.join(input['source']['bucket'], upload_path)) },
-            { "name": "Base Path", "value": path.join(sys.argv[1], input['params']['local_path']) },
-            { "name": "Upload Targets", "value": json.dumps(upload_targets, indent=2) }
+            { "name": "Upload Path", "value": upload_path },
+            { "name": "Local Path", "value": local_path },
+            { "name": "Uploaded Files", "value": u"%s" % (json.dumps(cleaned_upload_targets, indent=2)) },
         ]
     }
 
     return payload
 
-def main():
-    print(json.dumps(resource_out(sys.stdin)))
 
-if __name__ == '__main__':
-    main()
+def main(stream = None):
+    if stream is None:
+        print(json.dumps(resource_out(sys.stdin)))
+    else:
+        print(json.dumps(resource_out(stream)))
+
+debug = False
+
+if __name__ == "__main__": 
+    # print(sys.argv)
+    if debug:
+        with open(sys.argv[2]) as stream:
+            main(stream)
+    else:
+        main()

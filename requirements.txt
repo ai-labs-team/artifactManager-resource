@@ -10,6 +10,7 @@ mccabe==0.6.1
 pylint==1.8.2
 python-dateutil==2.6.1
 PyYAML==3.12
+ruamel.yaml==0.15.44
 s3transfer==0.1.13
 six==1.11.0
 wrapt==1.10.11

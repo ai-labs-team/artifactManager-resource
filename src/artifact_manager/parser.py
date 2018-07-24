@@ -1,48 +1,52 @@
 import datetime
-from artifact_manager.driver import s3
+import sys
+import json
 
+
+from .driver import s3
 from os import path, walk
 
-def build_upload_path(base_dir, input):
-    upload_path=''
 
-    if input['source']['base_path']:
-        upload_path=path.join(upload_path, input['source']['base_path'])
+class BuildPath():
 
-    if input['source']['path_scheme'] == 'date':
-        upload_path=path.join(upload_path, datetime.datetime.today().strftime('%Y/%m/%d'))
+    def __init__(self, s3):
+        self.s3 = s3
 
-    if input['source']['path_scheme'] == 'version':
-        data = open(path.join(base_dir, input['params']['version_file']), 'rb')
-        upload_path=path.join(str(upload_path), str(data.read().decode("utf-8")))
-   
-    return upload_path
+    def parse_file_location(self, base_path, file_path):
+        path_part = ''
 
-def get_upload_targets(base_dir, input):
-    base_path = path.join(base_dir, input['params']['local_path'])
-    return [{'path': path.join(root,file), 'filename':str(path.join(root,file)).replace('./','').replace(str(base_path) + '/','')} for root,dir,files in walk(base_path) for file in files]
+        for item in file_path:
+            if type(item) is str:
+                # print('Parsing String')
+                path_part = path.join(path_part, item)
+            elif item['type'] == 'file':
+                # print('Parsing File')
+                try:
+                    with open(path.join(base_path, item['path'])) as text:
+                        path_part = path.join(path_part, text.read().lstrip().rstrip())
+                except FileNotFoundError as error:
+                    raise RuntimeError('Not Found:' + path.join(base_path, item['path'])) from error
+            elif item['type'] == 's3':
+                # print('Parsing s3')
+                path_part = path.join(path_part, self.s3.s3_download(item['bucket'], item['key'], {}))
+            # print(json.dumps(item, indent=2))
 
-def build_download_path(base_dir, input):
-    if input['source']['path_scheme'] == 'file':
-        return input['params']['path']
+        return path_part
 
-def get_download_targets(base_dir, input):
-    return input['params']['items']
 
-def build_path(base_dir, input, s3_session):
-    new_path = ''
+class GetRemoteObjectPaths():
 
-    if 'base_path' in input['source']:
-        new_path=path.join(new_path, input['source']['base_path'])
+    def __init__(self):
+        self.s3 = None
 
-    for path_part in input['params']['path']:
-        if type(path_part) is str:
-            new_path=path.join(new_path,path_part)
-        if type(path_part) is dict:
-            new_path=path.join(new_path,parse_dict_path(path_part, s3_session))
+    def set_s3_client(self, s3):
+        self.s3 = s3
 
-    return new_path
+    def get_s3_downloads(self, bucket, filter):
+        if self.s3 is not None:
+            return self.s3.s3_search_with_prefix(bucket, filter)
+        else:
+            return []
 
-def parse_dict_path(dict_path, s3_session):
-    if dict_path['type'] == 's3':
-        return s3_session.s3_download(dict_path['bucket'],dict_path['key'], {}).rstrip()
+def get_upload_targets(payload):
+    return [{'path': path.join(root,file), 'filename':str(path.join(root,file)).replace('./','').replace(str(payload) + '/','')} for root,dir,files in walk(payload) for file in files]

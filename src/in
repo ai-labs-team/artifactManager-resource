@@ -1,17 +1,24 @@
 #!/usr/bin/env python
 
+import os
 import sys
 import json
 import datetime
+import ruamel.yaml as yaml
+import re
+
 
 from os import path
-from artifact_manager.parser import build_path, get_download_targets
+from artifact_manager.parser import BuildPath, GetRemoteObjectPaths
 from artifact_manager.driver import s3
+
 
 def resource_in(instream):
     input = json.load(instream)
+    base_dir = sys.argv[1]
 
-    s3_session = s3(input['source']['access_key'],input['source']['secret_access_key'])
+    if input['source']['driver'] == 's3':
+        s3_session = s3(input['source']['access_key_id'],input['source']['secret_access_key'],input['source']['region_name'])
 
     if 'params' not in input:
         return {
@@ -23,34 +30,68 @@ def resource_in(instream):
             ]
         }
 
-    download_path = build_path('', input, s3_session)
+    download_path = BuildPath(s3_session).parse_file_location(base_dir, input['params']['remote_path'])
+    local_path = base_dir
 
-    now = datetime.datetime.now()
-    new_version = input["version"]["Bucket"]
-    full_paths = []
-    for target in input['params']['items']:
-        new_path = path.join(download_path, target)
-        item = s3_session.s3_download(input['source']['bucket'], new_path, input['params'])
-        full_paths.append({'bucket':input['source']['bucket'], 'path':new_path})
-        data = open(path.join(sys.argv[1], target), 'w')
-        data.write(item)
+    try:
+        os.makedirs(local_path)
+    except FileExistsError as err:
+        # print(err)
+        pass
+
+    remote_objects_list = GetRemoteObjectPaths()
+    remote_objects_list.set_s3_client(s3_session)
+    objects = remote_objects_list.get_s3_downloads(input['source']['bucket'], download_path)
+
+    paths = []
+    for item in objects:
+        key = item.key
+        if item.key[-1:] == '/':
+            continue
+        trimed_download_loc = key[len(download_path) - len(key):]
+        trimed_download_loc = re.sub('^\/','',trimed_download_loc)
+
+        directory = trimed_download_loc.split('/')
+        directory.pop()
+        try:
+            os.makedirs(path.join(local_path,'/'.join(directory)))
+        except FileExistsError as err:
+            # print(err)
+            pass
+        data = s3_session.s3_download(input['source']['bucket'], item.key, input['params']) 
+        local_file = open(path.join(sys.argv[1], local_path, trimed_download_loc), 'w')
+        local_file.write(data)
+
+        paths.append(trimed_download_loc)
+
+    cleaned_download_targets = [item.key for item in objects]
 
     payload = {
         "version" : {
-            "Download Path" : u"%s %s" % (new_version, now)
+            "Download Path" : u"%s/%s" % (input['source']['bucket'], download_path)
         },
         "metadata" : [
             { "name": "Download Path", "value": download_path },
-            { "name": "Items", "value": str(input['params']['items']) },
-            { "name": "Full Manifest", "value": str(full_paths)},
+            { "name": "Local Path", "value": local_path },
+            { "name": "Full Manifest", "value": u"%s" % (json.dumps(cleaned_download_targets, indent=2))},
         ]
     }
 
     return payload
 
 
-def main():
-    print(json.dumps(resource_in(sys.stdin)))
+def main(stream = None):
+    if stream is None:
+        print(json.dumps(resource_in(sys.stdin)))
+    else:
+        print(json.dumps(resource_in(stream)))
 
-if __name__ == '__main__':
-    main()
+debug = False
+
+if __name__ == "__main__": 
+    # print(sys.argv)
+    if debug:
+        with open(sys.argv[2]) as stream:
+            main(stream)
+    else:
+        main()
