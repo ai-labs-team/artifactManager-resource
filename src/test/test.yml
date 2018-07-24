@@ -1,0 +1,23 @@
+{
+  "source": {
+    "driver": "s3",
+    "region_name": "us-west-2",
+    "access_key_id": "AKIAJ4SSAOBDQPPWLUUA",
+    "secret_access_key": "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",
+    "bucket": "axiom.config"
+  },
+  "params": {
+    "local_path": [
+      "generated_files"
+    ],
+    "remote_path": [
+      "testing/files",
+      {
+        "type": "s3",
+        "bucket": "axiom.config",
+        "key": "testing/version/api.txt"
+      },
+      "upload"
+    ]
+  }
+}
