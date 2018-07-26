@@ -64,6 +64,8 @@ class s3():
         content_type = ''
         if 'html' in key:
             content_type = 'text/html'
+        elif 'css' in key:
+            content_type = 'text/css'
         elif 'js' in key:
             content_type = 'application/javascript'
         elif 'png' in key:
